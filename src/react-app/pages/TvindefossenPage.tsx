@@ -78,11 +78,6 @@ const T_CARD_LABEL: CSSProperties = {
   letterSpacing: "0.14em", textTransform: "uppercase" as const, lineHeight: 1.6,
 };
 
-const T_MONO_DATA: CSSProperties = {
-  fontFamily: MONO, fontSize: "0.82rem", fontWeight: 400,
-  lineHeight: 1.60, letterSpacing: "0.06em",
-};
-
 const T_MONO_CAPTION: CSSProperties = {
   fontFamily: MONO, fontSize: "0.68rem", fontWeight: 400,
   letterSpacing: "0.14em", textTransform: "uppercase" as const, lineHeight: 1.50,
@@ -126,8 +121,6 @@ const LIGHT = {
   bq:      "#A4AE9C",
   accent:  "#D43535",
 } as const;
-
-type ColorTokens = typeof DARK;
 
 // ── Inlined useAmbientAudio ──────────────────────────────────────────────────
 
@@ -328,6 +321,23 @@ function CardLabel({ children, muted, size }: { children: React.ReactNode; muted
   return <p style={{ margin: "0 0 0.7rem", ...T_CARD_LABEL, ...(size ? { fontSize: size } : {}), color: muted }}>{children}</p>;
 }
 
+// ── Brand font loading ───────────────────────────────────────────────────────
+// The canon canvas source's header notes this was meant to become "a rendered
+// brand font link" (transform #5), but the crystallized export left a call to
+// this hook with no definition, and FONTS_HREF unused — TypeScript never
+// caught it because this file was never run through a real type-checker until
+// today's Cloudflare build. Restoring it properly: inject the brand stylesheet
+// link into <head> once, on mount.
+function useLoadBrandFonts() {
+  useEffect(() => {
+    if (document.querySelector(`link[href="${FONTS_HREF}"]`)) return;
+    const link = document.createElement("link");
+    link.rel = "stylesheet";
+    link.href = FONTS_HREF;
+    document.head.appendChild(link);
+  }, []);
+}
+
 interface WaterfallPageProps {
   isDark?: boolean;
   registerAudioToggle?: (toggle: () => void) => void;
@@ -375,7 +385,7 @@ export function TvindefossenFinal({
     el.addEventListener("scroll", h, { passive: true }); return () => el.removeEventListener("scroll", h);
   }, [onScroll]);
 
-  const scrollTo = (ref: React.RefObject<HTMLDivElement>) => ref.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  const scrollTo = (ref: React.RefObject<HTMLDivElement | null>) => ref.current?.scrollIntoView({ behavior: "smooth", block: "start" });
 
   const isMobile = bp === "mobile";
   const isTablet = bp === "tablet";
