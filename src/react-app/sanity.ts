@@ -5,9 +5,19 @@
 // build step needs to know about. Editing the document in Sanity Studio
 // and publishing is reflected here on next page load, with no rebuild.
 //
-// Scope for this proof: TEXT content comes from Sanity. Images stay as
-// static files shipped in this repo's public/__mockup/images/ folder —
-// making images CMS-editable too is a deliberate next step, not done yet.
+// Scope for this proof: TEXT content comes from Sanity. Images now come
+// from the R2 media pipeline (see lib/tvindefossen-images.ts) instead of
+// the static files this repo used to ship in public/__mockup/images/ —
+// making images CMS-editable too remains a deliberate next step, not done
+// yet (that's a Sanity-asset-URL change, separate from this R2 pass).
+
+import {
+  buildStaticImage,
+  HERO_WIDTHS,
+  HEADON_WIDTHS,
+  CLOSE_WIDTHS,
+  CLOSE_SIZES,
+} from "./lib/tvindefossen-images";
 
 const PROJECT_ID = "h6p17t07";
 const DATASET = "production";
@@ -52,33 +62,35 @@ async function fetchTvindefossenDoc(): Promise<SanityWaterfallDoc> {
   return json.result as SanityWaterfallDoc;
 }
 
-// Static image paths, shipped in this repo (public/__mockup/images/),
-// carried over verbatim from the crystallized component's own CONTENT
-// block. Not sourced from Sanity yet — see the note above.
-const STATIC_IMAGES = {
-  hero: "/__mockup/images/tvinde-hero-v2.jpg",
-  closeup: "/__mockup/images/tvinde-close.jpg",
-  wide: "/__mockup/images/tvinde-headon.jpg",
-  nextFallHero: "/__mockup/images/tvinde-close.jpg",
-};
+// Pre-baked, build-time-generated responsive variants served straight from
+// R2 — replaces the local public/__mockup/images/ static files.
+const heroImg = buildStaticImage("hero", HERO_WIDTHS);
+const headonImg = buildStaticImage("headon", HEADON_WIDTHS);
+const closeImg = buildStaticImage("close", CLOSE_WIDTHS, CLOSE_SIZES);
 
-// Shape matches the crystallized component's own `CONTENT` interface
-// exactly, so the 600+ lines of JSX below don't need to change at all —
-// only where this data comes from changes.
+// Shape matches the crystallized component's own `CONTENT` interface,
+// extended with srcSet/sizes so the <img> tags can go responsive without
+// otherwise touching the 600+ lines of JSX.
 export interface PageContent {
   name: string;
   tagline: string;
   heroImage: string;
+  heroImageSrcSet: string;
+  heroImageSizes: string;
   heroImagePosition: string;
-  closeupPhoto: { src: string; position: string };
-  widePhoto: { src: string; caption: string };
+  closeupPhoto: { src: string; srcSet: string; sizes: string; position: string };
+  widePhoto: { src: string; srcSet: string; sizes: string; caption: string };
   lede: string;
   spiceActive: { label: string; pullQuote: string; body: string };
   experiential: string[];
   practicalBody: string;
   quickFacts: Array<{ label: string; sub: string }>;
   planDetails: Array<{ label: string; body: string }>;
-  nextFall: { name: string; descriptor: string; hero: { src: string; position: string } };
+  nextFall: {
+    name: string;
+    descriptor: string;
+    hero: { src: string; srcSet: string; sizes: string; position: string };
+  };
   continueCards: {
     desktop: Array<{ label: string; body: string }>;
     tablet: Array<{ label: string; body: string }>;
@@ -92,14 +104,20 @@ export async function fetchTvindefossenContent(): Promise<PageContent> {
   return {
     name: doc.name,
     tagline: doc.tagline,
-    heroImage: STATIC_IMAGES.hero,
+    heroImage: heroImg.src,
+    heroImageSrcSet: heroImg.srcSet,
+    heroImageSizes: heroImg.sizes,
     heroImagePosition: doc.heroImagePosition ?? "center 28%",
     closeupPhoto: {
-      src: STATIC_IMAGES.closeup,
+      src: closeImg.src,
+      srcSet: closeImg.srcSet,
+      sizes: closeImg.sizes,
       position: doc.closeupPhoto?.position ?? "center 30%",
     },
     widePhoto: {
-      src: STATIC_IMAGES.wide,
+      src: headonImg.src,
+      srcSet: headonImg.srcSet,
+      sizes: headonImg.sizes,
       caption: doc.widePhoto?.caption ?? "",
     },
     lede: doc.lede,
@@ -112,7 +130,11 @@ export async function fetchTvindefossenContent(): Promise<PageContent> {
       name: doc.nextFall?.name ?? "",
       descriptor: doc.nextFall?.descriptor ?? "",
       hero: {
-        src: STATIC_IMAGES.nextFallHero,
+        // The export borrows the Tvindefossen close-up as the next-fall
+        // placeholder image — same as the Astro side.
+        src: closeImg.src,
+        srcSet: closeImg.srcSet,
+        sizes: closeImg.sizes,
         position: doc.nextFall?.hero?.position ?? "center 40%",
       },
     },
